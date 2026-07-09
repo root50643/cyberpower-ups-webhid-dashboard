@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UPS WebHID Dashboard</title>
+    <meta
+      name="description"
+      content="Read UPS battery, voltage, load, status, and raw HID reports directly from a browser with WebHID."
+    />
+    <link rel="stylesheet" href="./assets/css/styles.css" />
+  </head>
+  <body>
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="icon-activity" viewBox="0 0 24 24">
+        <path d="M3 12h4l3-8 4 16 3-8h4" />
+      </symbol>
+      <symbol id="icon-cpu" viewBox="0 0 24 24">
+        <rect x="7" y="7" width="10" height="10" rx="2" />
+        <path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3" />
+      </symbol>
+      <symbol id="icon-download" viewBox="0 0 24 24">
+        <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" />
+      </symbol>
+      <symbol id="icon-link" viewBox="0 0 24 24">
+        <path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.2 1.2" />
+        <path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.2-1.2" />
+      </symbol>
+      <symbol id="icon-monitor-dot" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="12" rx="2" />
+        <path d="M8 21h8M12 16v5" />
+        <circle cx="17" cy="8" r="1.5" />
+      </symbol>
+      <symbol id="icon-pause" viewBox="0 0 24 24">
+        <path d="M8 5v14M16 5v14" />
+      </symbol>
+      <symbol id="icon-play" viewBox="0 0 24 24">
+        <path d="m8 5 11 7-11 7z" />
+      </symbol>
+      <symbol id="icon-plug-zap" viewBox="0 0 24 24">
+        <path d="M8 2v5M16 2v5M7 7h10v5a5 5 0 0 1-10 0zM12 17v5" />
+        <path d="m16 13-3 4h4l-3 4" />
+      </symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24">
+        <path d="M20 11a8 8 0 0 0-14.6-4M4 7V3m0 4h4" />
+        <path d="M4 13a8 8 0 0 0 14.6 4M20 17v4m0-4h-4" />
+      </symbol>
+      <symbol id="icon-shield-check" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="m9 12 2 2 4-4" />
+      </symbol>
+      <symbol id="icon-terminal" viewBox="0 0 24 24">
+        <path d="m4 7 5 5-5 5M12 19h8" />
+      </symbol>
+      <symbol id="icon-volume-2" viewBox="0 0 24 24">
+        <path d="M11 5 6 9H3v6h3l5 4z" />
+        <path d="M15 9a5 5 0 0 1 0 6" />
+        <path d="M18 6a9 9 0 0 1 0 12" />
+      </symbol>
+    </svg>
+
+    <header class="app-shell app-header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">CP</div>
+        <div>
+          <p class="eyebrow">WebHID UPS Monitor</p>
+          <h1>UPS WebHID Dashboard</h1>
+        </div>
+      </div>
+      <div class="status-strip" aria-live="polite">
+        <span id="supportBadge" class="badge badge-neutral">檢查中</span>
+        <span id="connectionBadge" class="badge badge-muted">未連接</span>
+      </div>
+    </header>
+
+    <main class="app-shell dashboard">
+      <section class="control-band" aria-label="UPS 控制列">
+        <div class="control-group">
+          <label class="field-label" for="deviceSelect">已授權裝置</label>
+          <select id="deviceSelect" class="select-field">
+            <option value="">尚未取得授權</option>
+          </select>
+        </div>
+
+        <div class="control-group compact">
+          <label class="field-label" for="pollInterval">輪詢秒數</label>
+          <input id="pollInterval" class="number-field" type="number" min="1" max="60" step="1" value="2" />
+        </div>
+
+        <label class="toggle-field">
+          <input id="relaxedFilter" type="checkbox" />
+          <span>顯示所有 HID</span>
+        </label>
+
+        <div class="toolbar" role="group" aria-label="UPS 操作">
+          <button id="grantButton" class="button primary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="#icon-plug-zap"></use></svg>
+            <span>連接 UPS</span>
+          </button>
+          <button id="reconnectButton" class="button" type="button">
+            <svg class="icon" aria-hidden="true"><use href="#icon-link"></use></svg>
+            <span>開啟授權裝置</span>
+          </button>
+          <button id="readButton" class="button" type="button" disabled>
+            <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
+            <span>讀取一次</span>
+          </button>
+          <button id="demoButton" class="button" type="button">
+            <svg class="icon" aria-hidden="true"><use href="#icon-monitor-dot"></use></svg>
+            <span>示範資料</span>
+          </button>
+          <button id="startButton" class="button" type="button" disabled>
+            <svg class="icon" aria-hidden="true"><use href="#icon-play"></use></svg>
+            <span>開始輪詢</span>
+          </button>
+          <button id="stopButton" class="button" type="button" disabled>
+            <svg class="icon" aria-hidden="true"><use href="#icon-pause"></use></svg>
+            <span>停止</span>
+          </button>
+          <button id="exportButton" class="button" type="button" disabled>
+            <svg class="icon" aria-hidden="true"><use href="#icon-download"></use></svg>
+            <span>匯出 JSON</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="hero-panel" aria-label="UPS 即時狀態">
+        <div class="battery-widget">
+          <div class="battery-visual" aria-hidden="true">
+            <div id="batteryFill" class="battery-fill"></div>
+            <div id="batteryValue" class="battery-value">--%</div>
+          </div>
+          <div class="battery-caption">
+            <p class="section-kicker">Battery</p>
+            <h2 id="batteryTitle">等待讀取</h2>
+            <p id="snapshotTime" class="muted-text">尚無快照</p>
+          </div>
+        </div>
+
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span class="metric-label">剩餘時間</span>
+            <strong id="runtimeMetric">--</strong>
+            <span class="metric-unit">min</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">輸入電壓</span>
+            <strong id="inputMetric">--</strong>
+            <span class="metric-unit">V</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">輸出電壓</span>
+            <strong id="outputMetric">--</strong>
+            <span class="metric-unit">V</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">負載</span>
+            <strong id="loadMetric">--</strong>
+            <span class="metric-unit">%</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">負載功率</span>
+            <strong id="wattMetric">--</strong>
+            <span class="metric-unit">W</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">視在功率</span>
+            <strong id="vaMetric">--</strong>
+            <span class="metric-unit">VA</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">電池電壓</span>
+            <strong id="batteryVoltageMetric">--</strong>
+            <span class="metric-unit">V</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">額定容量</span>
+            <strong id="ratingMetric">--</strong>
+            <span class="metric-unit">VA / W</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="status-grid" aria-label="UPS 詳細資料">
+        <article class="panel">
+          <div class="panel-heading">
+            <svg class="icon" aria-hidden="true"><use href="#icon-cpu"></use></svg>
+            <h2>裝置</h2>
+          </div>
+          <dl id="deviceDetails" class="detail-list">
+            <div>
+              <dt>Product</dt>
+              <dd>--</dd>
+            </div>
+            <div>
+              <dt>VID:PID</dt>
+              <dd>--</dd>
+            </div>
+            <div>
+              <dt>Usage</dt>
+              <dd>--</dd>
+            </div>
+            <div>
+              <dt>Feature reports</dt>
+              <dd>--</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <svg class="icon" aria-hidden="true"><use href="#icon-activity"></use></svg>
+            <h2>狀態旗標</h2>
+          </div>
+          <div id="flagList" class="flag-list">
+            <span class="flag-chip unknown">AC</span>
+            <span class="flag-chip unknown">Charging</span>
+            <span class="flag-chip unknown">Discharging</span>
+            <span class="flag-chip unknown">Overload</span>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <svg class="icon" aria-hidden="true"><use href="#icon-shield-check"></use></svg>
+            <h2>驗證</h2>
+          </div>
+          <div id="validationPanel" class="validation-panel">
+            <span class="badge badge-muted">尚無資料</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel settings-panel" aria-label="UPS 設定">
+        <div class="panel-heading split">
+          <div class="panel-heading-title">
+            <svg class="icon" aria-hidden="true"><use href="#icon-volume-2"></use></svg>
+            <h2>UPS 設定</h2>
+          </div>
+          <span id="alarmStatusBadge" class="badge badge-muted">尚未讀取</span>
+        </div>
+        <div class="settings-layout">
+          <div class="setting-summary">
+            <p class="section-kicker">AudibleAlarmControl</p>
+            <strong id="currentAlarmValue" class="setting-value">--</strong>
+            <p id="writeResult" class="muted-text setting-result">尚未寫入</p>
+          </div>
+          <div class="setting-controls">
+            <div class="control-group">
+              <label class="field-label" for="audibleModeSelect">警報模式</label>
+              <select id="audibleModeSelect" class="select-field" disabled>
+                <option value="disabled">關閉 disabled</option>
+                <option value="enabled" selected>啟用 enabled</option>
+                <option value="muted">靜音 muted</option>
+              </select>
+            </div>
+            <label class="toggle-field safety-toggle">
+              <input id="writeConfirm" type="checkbox" disabled />
+              <span>確認寫入 UPS 設定</span>
+            </label>
+            <button id="writeAlarmButton" class="button primary" type="button" disabled>
+              <svg class="icon" aria-hidden="true"><use href="#icon-volume-2"></use></svg>
+              <span>寫入警報設定</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel raw-section" aria-label="Raw HID reports">
+        <div class="panel-heading split">
+          <div>
+            <p class="section-kicker">HID Reports</p>
+            <h2>Raw Reports</h2>
+          </div>
+          <span id="reportCount" class="badge badge-neutral">0 reports</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Report</th>
+                <th>Source</th>
+                <th>Bytes</th>
+                <th>Decoded</th>
+              </tr>
+            </thead>
+            <tbody id="reportsTable">
+              <tr>
+                <td colspan="4" class="empty-cell">尚未讀取 HID report</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel log-section" aria-label="事件記錄">
+        <div class="panel-heading">
+          <svg class="icon" aria-hidden="true"><use href="#icon-terminal"></use></svg>
+          <h2>事件記錄</h2>
+        </div>
+        <ol id="eventLog" class="event-log" aria-live="polite"></ol>
+      </section>
+    </main>
+
+    <script type="module" src="./assets/js/app.js"></script>
+  </body>
+</html>
